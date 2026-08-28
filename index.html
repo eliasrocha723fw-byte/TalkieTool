@@ -165,7 +165,7 @@
             transition: all 0.1s ease;
         }
 
-        /* EFECTO DE ILUMINACIÓN */
+        /* EFECTO DE ILUMINACIÓN DE USUARIO */
         .member-card.speaking {
             border-color: #00ea62 !important;
             box-shadow: 0 0 30px rgba(0, 234, 98, 0.9) !important;
@@ -217,6 +217,18 @@
             text-align: center;
             margin-top: 5px;
         }
+
+        /* INDICADOR DE MANTENER PANTALLA ACTIVA */
+        .wakelock-badge {
+            display: inline-block;
+            font-size: 10px;
+            background: rgba(0, 234, 98, 0.15);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            padding: 3px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -258,10 +270,11 @@
         <div>
             <div class="header">
                 <button style="background:none; border:none; color:#fff; font-size:20px;" onclick="leaveRoom()">✕</button>
-                <div>
-                    <p style="font-size: 10px; color: var(--text-sub); text-align: center;">SALA</p>
+                <div style="text-align: center;">
+                    <p style="font-size: 10px; color: var(--text-sub);">SALA</p>
                     <div id="display-room-code" class="room-code-display">0000</div>
                     <div id="status-msg">Listo para conectar</div>
+                    <div id="wakelock-status" class="wakelock-badge">☀️ Pantalla Activa</div>
                 </div>
                 <button style="background:none; border:none; color:#fff; font-size:20px;">🔊</button>
             </div>
@@ -291,6 +304,33 @@
         let localStream = null;
         let currentCode = "";
         let membersMap = new Map();
+        let wakeLock = null;
+
+        // MANTENER PANTALLA ENCENDIDA
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('wakelock-status').style.display = 'inline-block';
+                }
+            } catch (err) {
+                console.log("WakeLock error:", err);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
+        // Si el usuario vuelve a ver la app, reactivar el bloqueo
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -341,6 +381,7 @@
             showScreen('screen-room');
             startPeerConnection("room-" + currentCode);
             initMic();
+            requestWakeLock();
         }
 
         function joinRoom() {
@@ -355,6 +396,7 @@
             showScreen('screen-room');
             startPeerConnection("user-" + Math.floor(1000 + Math.random() * 9000));
             initMic();
+            requestWakeLock();
         }
 
         async function startPeerConnection(peerId) {
@@ -443,14 +485,14 @@
             const startTalking = (e) => {
                 if (e) e.preventDefault();
 
-                // 1. Efecto visual directo e inmediato
+                // Efecto visual directo
                 pttBtn.classList.add('active');
                 const selfCard = document.getElementById('card-self');
                 if (selfCard) {
                     selfCard.classList.add('speaking');
                 }
 
-                // 2. Encender micrófono
+                // Encender micrófono
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = true;
                 }
@@ -459,20 +501,19 @@
             const stopTalking = (e) => {
                 if (e) e.preventDefault();
 
-                // 1. Apagar efecto visual
+                // Apagar efecto visual
                 pttBtn.classList.remove('active');
                 const selfCard = document.getElementById('card-self');
                 if (selfCard) {
                     selfCard.classList.remove('speaking');
                 }
 
-                // 2. Apagar micrófono
+                // Apagar micrófono
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = false;
                 }
             };
 
-            // Múltiples escuchadores para asegurar compatibilidad en Android WebView
             pttBtn.addEventListener('touchstart', startTalking, { passive: false });
             pttBtn.addEventListener('touchend', stopTalking, { passive: false });
             pttBtn.addEventListener('mousedown', startTalking);
@@ -481,6 +522,7 @@
 
         function leaveRoom() {
             if (peer) peer.destroy();
+            releaseWakeLock();
             showScreen('screen-home');
         }
 
