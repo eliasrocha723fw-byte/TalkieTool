@@ -159,6 +159,14 @@
             justify-content: center;
             border: 2px solid transparent;
             min-height: 120px;
+            transition: all 0.2s ease;
+        }
+
+        /* EFECTO DE LUZ AL HABLAR EN LA TARJETA DEL JUGADOR */
+        .member-card.speaking {
+            border-color: var(--accent-green) !important;
+            box-shadow: 0 0 20px rgba(0, 234, 98, 0.5) !important;
+            transform: scale(1.02);
         }
 
         .ptt-container {
@@ -178,24 +186,28 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 234, 98, 0.2);
+            box-shadow: 0 0 15px rgba(0, 234, 98, 0.15);
             user-select: none;
             touch-action: manipulation;
+            transition: all 0.15s ease;
         }
 
+        /* EFECTO DE LUZ EN EL BOTÓN PRINCIPAL DEL MICRÓFONO */
         .btn-ptt.active {
-            background-color: var(--accent-green);
-            box-shadow: 0 0 30px rgba(0, 234, 98, 0.6);
+            background-color: var(--accent-green) !important;
+            box-shadow: 0 0 35px rgba(0, 234, 98, 0.8) !important;
+            transform: scale(0.95);
         }
 
         .btn-ptt svg {
             width: 40px;
             height: 40px;
             fill: var(--accent-green);
+            transition: fill 0.15s ease;
         }
 
         .btn-ptt.active svg {
-            fill: #000;
+            fill: #000 !important;
         }
 
         #status-msg {
@@ -302,9 +314,11 @@
             document.getElementById(id).classList.add('active');
         }
 
-        function handleContinue() {
+        async function handleContinue() {
             const inputName = document.getElementById('user-name-input').value.trim();
             if (inputName) currentUser.name = inputName;
+
+            await requestMic();
 
             const fileInput = document.getElementById('user-photo-input');
             if (fileInput.files && fileInput.files[0]) {
@@ -314,29 +328,23 @@
                     applyProfileUI();
                     showScreen('screen-home');
                 };
-                reader.onerror = function() {
-                    applyProfileUI();
-                    showScreen('screen-home');
-                };
                 reader.readAsDataURL(fileInput.files[0]);
             } else {
                 applyProfileUI();
                 showScreen('screen-home');
             }
-
-            // Solicitar permisos de micrófono en segundo plano
-            initMicPermissions();
         }
 
-        async function initMicPermissions() {
-            if (localStream) return;
+        async function requestMic() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 if (localStream && localStream.getAudioTracks().length > 0) {
                     localStream.getAudioTracks()[0].enabled = false;
                 }
+                return true;
             } catch (err) {
-                console.log("El permiso de micrófono se solicitará al entrar a la sala.");
+                console.warn("Permiso de micrófono pendiente o denegado.");
+                return false;
             }
         }
 
@@ -378,7 +386,11 @@
             renderMembers();
 
             if (!localStream) {
-                await initMicPermissions();
+                let gotMic = await requestMic();
+                if (!gotMic) {
+                    document.getElementById('status-msg').innerText = "Permiso de micrófono requerido";
+                    document.getElementById('status-msg').style.color = "var(--accent-red)";
+                }
             }
 
             if (peer) peer.destroy();
@@ -387,6 +399,7 @@
 
             peer.on('open', () => {
                 document.getElementById('status-msg').innerText = "Conectado";
+                document.getElementById('status-msg').style.color = "var(--accent-green)";
 
                 if (peerId.startsWith("user-")) {
                     let call = peer.call("room-" + currentCode, localStream);
@@ -429,7 +442,7 @@
             call.on('stream', (remoteStream) => {
                 const audio = document.getElementById('remote-audio');
                 audio.srcObject = remoteStream;
-                audio.play();
+                audio.play().catch(e => console.log("Audio autostart block", e));
             });
         }
 
@@ -437,9 +450,10 @@
             const grid = document.getElementById('members-grid');
             grid.innerHTML = "";
 
-            membersMap.forEach((member) => {
+            membersMap.forEach((member, key) => {
                 const card = document.createElement('div');
                 card.className = 'member-card';
+                card.id = `card-${key}`;
 
                 let avatarHTML = member.photo 
                     ? `<div class="avatar" style="margin-bottom: 8px; background-image: url(${member.photo});"></div>`
@@ -462,7 +476,13 @@
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = true;
                 }
+                
+                // 1. Iluminar botón de micrófono abajo
                 pttBtn.classList.add('active');
+
+                // 2. Iluminar cuadro/tarjeta del usuario TÚ con luz verde
+                const selfCard = document.getElementById('card-self');
+                if (selfCard) selfCard.classList.add('speaking');
             };
 
             const stopTalking = (e) => {
@@ -470,7 +490,13 @@
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = false;
                 }
+
+                // 1. Apagar luz del botón
                 pttBtn.classList.remove('active');
+
+                // 2. Apagar luz del cuadro/tarjeta
+                const selfCard = document.getElementById('card-self');
+                if (selfCard) selfCard.classList.remove('speaking');
             };
 
             pttBtn.ontouchstart = startTalking;
@@ -490,5 +516,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
