@@ -21,6 +21,7 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
@@ -72,17 +73,6 @@
             background-position: center;
             cursor: pointer;
             position: relative;
-        }
-
-        .avatar-clickable::after {
-            content: '📷';
-            position: absolute;
-            font-size: 12px;
-            bottom: 2px;
-            right: 2px;
-            background: rgba(0,0,0,0.6);
-            border-radius: 50%;
-            padding: 2px;
         }
 
         .btn-green {
@@ -170,15 +160,16 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            border: 2px solid transparent;
+            border: 3px solid transparent;
             min-height: 120px;
-            transition: all 0.2s ease;
+            transition: all 0.1s ease;
         }
 
+        /* EFECTO DE ILUMINACIÓN */
         .member-card.speaking {
-            border-color: var(--accent-green) !important;
-            box-shadow: 0 0 25px rgba(0, 234, 98, 0.7) !important;
-            transform: scale(1.03);
+            border-color: #00ea62 !important;
+            box-shadow: 0 0 30px rgba(0, 234, 98, 0.9) !important;
+            transform: scale(1.05);
         }
 
         .ptt-container {
@@ -199,22 +190,21 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(0, 234, 98, 0.15);
-            user-select: none;
-            touch-action: manipulation;
-            transition: all 0.15s ease;
+            touch-action: none;
+            transition: all 0.1s ease;
         }
 
         .btn-ptt.active {
             background-color: var(--accent-green) !important;
-            box-shadow: 0 0 40px rgba(0, 234, 98, 0.9) !important;
-            transform: scale(0.95);
+            box-shadow: 0 0 45px rgba(0, 234, 98, 1) !important;
+            transform: scale(0.92);
         }
 
         .btn-ptt svg {
             width: 40px;
             height: 40px;
             fill: var(--accent-green);
-            transition: fill 0.15s ease;
+            pointer-events: none;
         }
 
         .btn-ptt.active svg {
@@ -236,7 +226,7 @@
         <div>
             <div class="header">
                 <div class="user-profile">
-                    <div id="user-avatar" class="avatar avatar-clickable" onclick="document.getElementById('photo-input').click()">M</div>
+                    <div id="user-avatar" class="avatar" onclick="document.getElementById('photo-input').click()">M</div>
                     <input type="file" id="photo-input" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
                     
                     <div>
@@ -292,7 +282,6 @@
         </div>
     </div>
 
-    <!-- Elementos de Audio -->
     <audio id="remote-audio" autoplay playsinline></audio>
     <audio id="local-audio-test" autoplay playsinline></audio>
 
@@ -331,29 +320,18 @@
             }
         }
 
-        async function requestMic() {
-            if (localStream) return true;
+        async function initMic() {
+            if (localStream) return;
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true
-                    }, 
-                    video: false 
-                });
-                
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 if (localStream && localStream.getAudioTracks().length > 0) {
                     localStream.getAudioTracks()[0].enabled = false;
-
-                    // Configurar reproducción local de prueba
                     const localAudio = document.getElementById('local-audio-test');
                     localAudio.srcObject = localStream;
-                    localAudio.volume = 0.3; // Volumen controlado al 30% para probar sin auriculares
+                    localAudio.volume = 0.3;
                 }
-                return true;
             } catch (err) {
-                alert("Por favor concede el permiso de micrófono en tu celular para hablar.");
-                return false;
+                console.log("Error de mic:", err);
             }
         }
 
@@ -362,6 +340,7 @@
             document.getElementById('display-room-code').innerText = currentCode;
             showScreen('screen-room');
             startPeerConnection("room-" + currentCode);
+            initMic();
         }
 
         function joinRoom() {
@@ -375,6 +354,7 @@
             document.getElementById('display-room-code').innerText = currentCode;
             showScreen('screen-room');
             startPeerConnection("user-" + Math.floor(1000 + Math.random() * 9000));
+            initMic();
         }
 
         async function startPeerConnection(peerId) {
@@ -431,7 +411,7 @@
             call.on('stream', (remoteStream) => {
                 const audio = document.getElementById('remote-audio');
                 audio.srcObject = remoteStream;
-                audio.play().catch(e => console.log("Audio autostart block", e));
+                audio.play().catch(e => console.log("Audio block", e));
             });
         }
 
@@ -460,36 +440,43 @@
         function setupPTT() {
             const pttBtn = document.getElementById('ptt-button');
 
-            const startTalking = async (e) => {
+            const startTalking = (e) => {
                 if (e) e.preventDefault();
 
-                const hasMic = await requestMic();
+                // 1. Efecto visual directo e inmediato
+                pttBtn.classList.add('active');
+                const selfCard = document.getElementById('card-self');
+                if (selfCard) {
+                    selfCard.classList.add('speaking');
+                }
 
-                if (hasMic && localStream && localStream.getAudioTracks()[0]) {
+                // 2. Encender micrófono
+                if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = true;
                 }
-                
-                pttBtn.classList.add('active');
-
-                const selfCard = document.getElementById('card-self');
-                if (selfCard) selfCard.classList.add('speaking');
             };
 
             const stopTalking = (e) => {
                 if (e) e.preventDefault();
+
+                // 1. Apagar efecto visual
+                pttBtn.classList.remove('active');
+                const selfCard = document.getElementById('card-self');
+                if (selfCard) {
+                    selfCard.classList.remove('speaking');
+                }
+
+                // 2. Apagar micrófono
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = false;
                 }
-
-                pttBtn.classList.remove('active');
-
-                const selfCard = document.getElementById('card-self');
-                if (selfCard) selfCard.classList.remove('speaking');
             };
 
-            pttBtn.onpointerdown = startTalking;
-            pttBtn.onpointerup = stopTalking;
-            pttBtn.onpointerleave = stopTalking;
+            // Múltiples escuchadores para asegurar compatibilidad en Android WebView
+            pttBtn.addEventListener('touchstart', startTalking, { passive: false });
+            pttBtn.addEventListener('touchend', stopTalking, { passive: false });
+            pttBtn.addEventListener('mousedown', startTalking);
+            pttBtn.addEventListener('mouseup', stopTalking);
         }
 
         function leaveRoom() {
