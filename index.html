@@ -177,8 +177,8 @@
 
         .member-card.speaking {
             border-color: var(--accent-green) !important;
-            box-shadow: 0 0 20px rgba(0, 234, 98, 0.5) !important;
-            transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(0, 234, 98, 0.7) !important;
+            transform: scale(1.03);
         }
 
         .ptt-container {
@@ -206,7 +206,7 @@
 
         .btn-ptt.active {
             background-color: var(--accent-green) !important;
-            box-shadow: 0 0 35px rgba(0, 234, 98, 0.8) !important;
+            box-shadow: 0 0 40px rgba(0, 234, 98, 0.9) !important;
             transform: scale(0.95);
         }
 
@@ -236,7 +236,6 @@
         <div>
             <div class="header">
                 <div class="user-profile">
-                    <!-- Avatar con botón de cambiar foto -->
                     <div id="user-avatar" class="avatar avatar-clickable" onclick="document.getElementById('photo-input').click()">M</div>
                     <input type="file" id="photo-input" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
                     
@@ -293,7 +292,9 @@
         </div>
     </div>
 
+    <!-- Elementos de Audio -->
     <audio id="remote-audio" autoplay playsinline></audio>
+    <audio id="local-audio-test" autoplay playsinline></audio>
 
     <script>
         let currentUser = { name: "MønKingg", photo: null };
@@ -333,13 +334,25 @@
         async function requestMic() {
             if (localStream) return true;
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }, 
+                    video: false 
+                });
+                
                 if (localStream && localStream.getAudioTracks().length > 0) {
                     localStream.getAudioTracks()[0].enabled = false;
+
+                    // Configurar reproducción local de prueba
+                    const localAudio = document.getElementById('local-audio-test');
+                    localAudio.srcObject = localStream;
+                    localAudio.volume = 0.3; // Volumen controlado al 30% para probar sin auriculares
                 }
                 return true;
             } catch (err) {
-                console.warn("No se pudo obtener acceso al micrófono:", err);
+                alert("Por favor concede el permiso de micrófono en tu celular para hablar.");
                 return false;
             }
         }
@@ -450,11 +463,9 @@
             const startTalking = async (e) => {
                 if (e) e.preventDefault();
 
-                if (!localStream) {
-                    await requestMic();
-                }
+                const hasMic = await requestMic();
 
-                if (localStream && localStream.getAudioTracks()[0]) {
+                if (hasMic && localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = true;
                 }
                 
@@ -476,10 +487,9 @@
                 if (selfCard) selfCard.classList.remove('speaking');
             };
 
-            pttBtn.ontouchstart = startTalking;
-            pttBtn.ontouchend = stopTalking;
-            pttBtn.onmousedown = startTalking;
-            pttBtn.onmouseup = stopTalking;
+            pttBtn.onpointerdown = startTalking;
+            pttBtn.onpointerup = stopTalking;
+            pttBtn.onpointerleave = stopTalking;
         }
 
         function leaveRoom() {
