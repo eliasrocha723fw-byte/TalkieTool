@@ -225,7 +225,7 @@
             </div>
         </div>
 
-        <button class="btn-green" onclick="requestPermissionsAndSave()">CONTINUAR</button>
+        <button class="btn-green" onclick="handleContinue()">CONTINUAR</button>
     </div>
 
     <!-- 2. PANTALLA INICIO -->
@@ -267,7 +267,7 @@
                 <div>
                     <p style="font-size: 10px; color: var(--text-sub); text-align: center;">SALA</p>
                     <div id="display-room-code" class="room-code-display">0000</div>
-                    <div id="status-msg">Listo</div>
+                    <div id="status-msg">Iniciando...</div>
                 </div>
                 <button style="background:none; border:none; color:#fff; font-size:20px;">🔊</button>
             </div>
@@ -288,7 +288,6 @@
         </div>
     </div>
 
-    <!-- Elemento de reproducción de audio -->
     <audio id="remote-audio" autoplay playsinline></audio>
 
     <script>
@@ -303,28 +302,9 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // Pide los permisos de Micrófono inmediatamente al darle a Continuar
-        async function requestPermissionsAndSave() {
+        function handleContinue() {
             const inputName = document.getElementById('user-name-input').value.trim();
             if (inputName) currentUser.name = inputName;
-
-            try {
-                // Solicitar micrófono para activar la ventana emergente de permisos de Android
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                // Mapear canal en silencio hasta presionar PTT
-                localStream.getAudioTracks()[0].enabled = false;
-            } catch (err) {
-                alert("Para usar el Walkie-Talkie necesitas aceptar el permiso de micrófono.");
-            }
-
-            // Habilitar reproducción de audio en segundo plano (MediaSession API)
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: 'TalkieTool Activo',
-                    artist: 'Canal de voz abierto',
-                    album: 'TalkieTool'
-                });
-            }
 
             const fileInput = document.getElementById('user-photo-input');
             if (fileInput.files && fileInput.files[0]) {
@@ -334,10 +314,29 @@
                     applyProfileUI();
                     showScreen('screen-home');
                 };
+                reader.onerror = function() {
+                    applyProfileUI();
+                    showScreen('screen-home');
+                };
                 reader.readAsDataURL(fileInput.files[0]);
             } else {
                 applyProfileUI();
                 showScreen('screen-home');
+            }
+
+            // Solicitar permisos de micrófono en segundo plano
+            initMicPermissions();
+        }
+
+        async function initMicPermissions() {
+            if (localStream) return;
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                if (localStream && localStream.getAudioTracks().length > 0) {
+                    localStream.getAudioTracks()[0].enabled = false;
+                }
+            } catch (err) {
+                console.log("El permiso de micrófono se solicitará al entrar a la sala.");
             }
         }
 
@@ -353,7 +352,6 @@
             }
         }
 
-        // Click puro e instantáneo para Crear Sala
         function createRoom() {
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('display-room-code').innerText = currentCode;
@@ -361,7 +359,6 @@
             startPeerConnection("room-" + currentCode);
         }
 
-        // Click puro e instantáneo para Entrar a la Sala
         function joinRoom() {
             const input = document.getElementById('room-code-input').value;
             if (input.length !== 4) {
@@ -375,10 +372,14 @@
             startPeerConnection("user-" + Math.floor(1000 + Math.random() * 9000));
         }
 
-        function startPeerConnection(peerId) {
+        async function startPeerConnection(peerId) {
             membersMap.clear();
             membersMap.set('self', { name: currentUser.name, photo: currentUser.photo, isSelf: true });
             renderMembers();
+
+            if (!localStream) {
+                await initMicPermissions();
+            }
 
             if (peer) peer.destroy();
 
@@ -489,4 +490,5 @@
         }
     </script>
 </body>
-</html>
+    </html>
+    
