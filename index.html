@@ -58,16 +58,19 @@
         }
 
         .avatar {
-            width: 44px;
-            height: 44px;
+            width: 50px;
+            height: 50px;
             background-color: var(--accent-green);
             color: #000;
             font-weight: bold;
-            border-radius: 12px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 22px;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
         }
 
         /* Botones */
@@ -94,12 +97,23 @@
             cursor: pointer;
         }
 
-        /* Pantalla Inicio */
         .card {
             background-color: var(--card-bg);
             border-radius: 20px;
             padding: 20px;
             margin-top: 15px;
+        }
+
+        .text-input {
+            width: 100%;
+            background-color: #000;
+            border: 1px solid #333;
+            color: var(--text-main);
+            font-size: 16px;
+            padding: 14px;
+            border-radius: 12px;
+            margin-top: 10px;
+            outline: none;
         }
 
         .code-input-container {
@@ -117,10 +131,10 @@
             text-align: center;
             padding: 12px;
             border-radius: 12px;
-            width: 80%;
+            width: 100%;
+            outline: none;
         }
 
-        /* Pantalla Sala */
         .room-code-display {
             font-size: 36px;
             font-weight: 900;
@@ -128,6 +142,7 @@
             text-align: center;
         }
 
+        /* Tarjetas estilo imagen */
         .grid-members {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -139,19 +154,21 @@
 
         .member-card {
             background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 15px;
+            border-radius: 20px;
+            padding: 20px 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             border: 2px solid transparent;
+            min-height: 120px;
         }
 
         .member-card.speaking {
             border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 234, 98, 0.3);
         }
 
-        /* Botón PTT */
         .ptt-container {
             display: flex;
             flex-direction: column;
@@ -170,9 +187,10 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 0 20px rgba(0, 234, 98, 0.2);
+            user-select: none;
         }
 
-        .btn-ptt:active {
+        .btn-ptt.active {
             background-color: var(--accent-green);
             box-shadow: 0 0 30px rgba(0, 234, 98, 0.6);
         }
@@ -183,55 +201,45 @@
             fill: var(--accent-green);
         }
 
-        .btn-ptt:active svg {
+        .btn-ptt.active svg {
             fill: #000;
         }
-
-        /* Ajustes UI Switch */
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid #222;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 46px;
-            height: 26px;
-        }
-
-        .switch input { opacity: 0; width: 0; height: 0; }
-
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #333; transition: .3s; border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px;
-            background-color: white; transition: .3s; border-radius: 50%;
-        }
-
-        input:checked + .slider { background-color: var(--accent-green); }
-        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
 
-    <!-- 1. PANTALLA INICIO -->
-    <div id="screen-home" class="screen active">
+    <!-- 1. PANTALLA BIENVENIDA / REGISTRO -->
+    <div id="screen-welcome" class="screen active">
+        <div>
+            <h1 style="font-size: 28px; font-weight: 800; margin-top: 20px; color: var(--accent-green);">TalkieTool</h1>
+            <p style="color: var(--text-sub); font-size: 14px; margin-top: 5px;">Configura tu perfil para unirte a las salas.</p>
+
+            <div class="card" style="margin-top: 30px;">
+                <label style="font-size: 12px; color: var(--text-sub); font-weight: bold;">TU NOMBRE O APODO</label>
+                <input type="text" id="user-name-input" class="text-input" placeholder="Ej: MønKingg" value="MønKingg">
+
+                <div style="margin-top: 20px;">
+                    <label style="font-size: 12px; color: var(--text-sub); font-weight: bold;">FOTO DE PERFIL (OPCIONAL)</label>
+                    <input type="file" id="user-photo-input" accept="image/*" class="text-input" style="padding: 8px;">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-green" onclick="saveProfile()">CONTINUAR</button>
+    </div>
+
+    <!-- 2. PANTALLA INICIO -->
+    <div id="screen-home" class="screen">
         <div>
             <div class="header">
                 <div class="user-profile">
-                    <div class="avatar">M</div>
+                    <div id="user-avatar" class="avatar">M</div>
                     <div>
                         <div style="color: var(--text-sub); font-size: 12px;">HOLA</div>
-                        <div style="font-weight: bold;">MønKingg</div>
+                        <div id="user-name-display" style="font-weight: bold;">MønKingg</div>
                     </div>
                 </div>
+                <button style="background:none; border:none; color:var(--text-sub); font-size:12px;" onclick="showScreen('screen-welcome')">Editar</button>
             </div>
 
             <div style="margin-top: 30px;">
@@ -244,16 +252,14 @@
             <div class="card">
                 <p style="color: var(--text-sub); font-size: 12px; font-weight: bold; text-align: center;">UNIRSE POR CÓDIGO</p>
                 <div class="code-input-container">
-                    <input type="number" id="room-code-input" class="code-input" placeholder="0000" maxlength="4">
+                    <input type="number" id="room-code-input" class="code-input" placeholder="0000" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                 </div>
                 <button class="btn-outline" onclick="joinRoom()">ENTRAR A LA SALA</button>
             </div>
         </div>
-
-        <button class="btn-outline" style="border-color: #333; color: #fff;" onclick="showScreen('screen-settings')">Ajustes de audio</button>
     </div>
 
-    <!-- 2. PANTALLA SALA -->
+    <!-- 3. PANTALLA SALA -->
     <div id="screen-room" class="screen">
         <div>
             <div class="header">
@@ -266,21 +272,13 @@
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                <span id="member-count" style="color: var(--text-sub); font-size: 14px;">1 miembro (Máx 6)</span>
+                <span id="member-count" style="color: var(--text-sub); font-size: 14px;">1 miembro • Comparte el código</span>
                 <button style="background:none; border:none; color:var(--accent-green); font-size: 12px; font-weight:bold;" onclick="copyCode()">📋 COPIAR</button>
             </div>
 
-            <!-- Grilla para hasta 6 personas -->
-            <div id="members-grid" class="grid-members">
-                <div class="member-card">
-                    <div class="avatar" style="margin-bottom: 8px;">M</div>
-                    <div style="font-size: 14px; font-weight: bold;">MønKingg</div>
-                    <div style="font-size: 10px; color: var(--text-sub);">TÚ</div>
-                </div>
-            </div>
+            <div id="members-grid" class="grid-members"></div>
         </div>
 
-        <!-- Controles Push-To-Talk -->
         <div class="ptt-container">
             <div class="btn-ptt" id="ptt-button">
                 <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
@@ -289,140 +287,191 @@
         </div>
     </div>
 
-    <!-- 3. PANTALLA AJUSTES -->
-    <div id="screen-settings" class="screen">
-        <div>
-            <div class="header" style="justify-content: flex-start; gap: 20px;">
-                <button style="background:none; border:none; color:#fff; font-size:20px;" onclick="showScreen('screen-home')">←</button>
-                <h2 style="font-size: 18px;">AJUSTES DE AUDIO</h2>
-            </div>
-
-            <div class="card" style="margin-top: 20px;">
-                <div class="setting-row">
-                    <div>
-                        <div style="font-weight: bold;">Modo Competitivo</div>
-                        <div style="font-size: 11px; color: var(--text-sub);">Latencia mínima sin efectos</div>
-                    </div>
-                    <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div style="font-weight: bold;">Cancelación de Ruido</div>
-                        <div style="font-size: 11px; color: var(--text-sub);">Filtra sonido ambiental</div>
-                    </div>
-                    <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Audio Element para reproducir el canal -->
     <audio id="remote-audio" autoplay></audio>
 
     <script>
+        let currentUser = { name: "MønKingg", photo: null };
         let peer = null;
         let localStream = null;
         let currentCode = "";
-        let connections = [];
+        let membersMap = new Map();
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
 
-        async function initAudio() {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { echoCancellation: true, noiseSuppression: true } 
-                });
-                // Mute local stream por defecto (Push To Talk)
-                localStream.getAudioTracks()[0].enabled = false;
-            } catch (e) {
-                alert("Permiso de micrófono requerido para continuar.");
-            }
-        }
+        function saveProfile() {
+            const inputName = document.getElementById('user-name-input').value.trim();
+            if (inputName) currentUser.name = inputName;
 
-        function createRoom() {
-            currentCode = Math.floor(1000 + Math.random() * 9000).toString();
-            setupPeer(currentCode);
-        }
-
-        function joinRoom() {
-            const input = document.getElementById('room-code-input').value;
-            if (input.length === 4) {
-                currentCode = input;
-                setupPeer("guest-" + Math.floor(Math.random() * 1000));
+            const fileInput = document.getElementById('user-photo-input');
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    currentUser.photo = e.target.result;
+                    applyProfileUI();
+                    showScreen('screen-home');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
             } else {
-                alert("Ingresa un código de 4 dígitos.");
+                applyProfileUI();
+                showScreen('screen-home');
             }
         }
 
-        function setupPeer(id) {
-            initAudio().then(() => {
-                peer = new Peer(id);
+        function applyProfileUI() {
+            document.getElementById('user-name-display').innerText = currentUser.name;
+            const avatar = document.getElementById('user-avatar');
+            if (currentUser.photo) {
+                avatar.style.backgroundImage = `url(${currentUser.photo})`;
+                avatar.innerText = "";
+            } else {
+                avatar.style.backgroundImage = "none";
+                avatar.innerText = currentUser.name.charAt(0).toUpperCase();
+            }
+        }
 
-                peer.on('open', (peerId) => {
-                    document.getElementById('display-room-code').innerText = currentCode;
-                    showScreen('screen-room');
-                    setupPTT();
+        async function initAudio() {
+            if (localStream) return true;
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                localStream.getAudioTracks()[0].enabled = false;
+                return true;
+            } catch (e) {
+                alert("Para hablar debes conceder permiso de micrófono.");
+                return false;
+            }
+        }
 
-                    // Si se une como invitado, llamar al host
-                    if (id.startsWith("guest-")) {
-                        let call = peer.call(currentCode, localStream);
-                        handleCall(call);
+        async function createRoom() {
+            const audioReady = await initAudio();
+            if (!audioReady) return;
+
+            currentCode = Math.floor(1000 + Math.random() * 9000).toString();
+            document.getElementById('display-room-code').innerText = currentCode;
+            setupPeer("room-" + currentCode);
+        }
+
+        async function joinRoom() {
+            const input = document.getElementById('room-code-input').value;
+            if (input.length !== 4) {
+                alert("Ingresa un código válido de 4 dígitos.");
+                return;
+            }
+
+            const audioReady = await initAudio();
+            if (!audioReady) return;
+
+            currentCode = input;
+            document.getElementById('display-room-code').innerText = currentCode;
+            setupPeer("user-" + Math.floor(Math.random() * 10000));
+        }
+
+        function setupPeer(peerId) {
+            if (peer) peer.destroy();
+            membersMap.clear();
+
+            peer = new Peer(peerId);
+
+            peer.on('open', () => {
+                showScreen('screen-room');
+                // Agregar propio usuario
+                membersMap.set('self', { name: currentUser.name, photo: currentUser.photo, isSelf: true });
+                renderMembers();
+
+                if (peerId.startsWith("user-")) {
+                    // Unirse a la sala del host
+                    let call = peer.call("room-" + currentCode, localStream);
+                    let conn = peer.connect("room-" + currentCode);
+                    
+                    conn.on('open', () => {
+                        conn.send({ type: 'profile', user: currentUser });
+                    });
+
+                    conn.on('data', (data) => {
+                        if (data.type === 'profile') {
+                            membersMap.set('host', { name: data.user.name, photo: data.user.photo, isSelf: false });
+                            renderMembers();
+                        }
+                    });
+
+                    handleCall(call);
+                }
+            });
+
+            // Recibir llamada de invitados
+            peer.on('call', (call) => {
+                call.answer(localStream);
+                handleCall(call);
+            });
+
+            // Recibir datos de perfil de invitados
+            peer.on('connection', (conn) => {
+                conn.on('data', (data) => {
+                    if (data.type === 'profile') {
+                        membersMap.set(conn.peer, { name: data.user.name, photo: data.user.photo, isSelf: false });
+                        renderMembers();
+                        // Responder enviando el perfil propio del Host
+                        conn.send({ type: 'profile', user: currentUser });
                     }
                 });
-
-                peer.on('call', (call) => {
-                    call.answer(localStream);
-                    handleCall(call);
-                });
             });
+
+            setupPTT();
         }
 
         function handleCall(call) {
             call.on('stream', (remoteStream) => {
                 document.getElementById('remote-audio').srcObject = remoteStream;
-                addMemberCard("Jugador " + (connections.length + 2));
             });
-            connections.push(call);
-            updateMemberCount();
         }
 
-        function addMemberCard(name) {
+        function renderMembers() {
             const grid = document.getElementById('members-grid');
-            if (grid.children.length < 6) {
+            grid.innerHTML = "";
+
+            membersMap.forEach((member) => {
                 const card = document.createElement('div');
                 card.className = 'member-card';
-                card.innerHTML = `<div class="avatar" style="margin-bottom: 8px;">J</div><div style="font-size: 14px; font-weight: bold;">${name}</div>`;
-                grid.appendChild(card);
-            }
-        }
 
-        function updateMemberCount() {
-            document.getElementById('member-count').innerText = `${connections.length + 1} miembros (Máx 6)`;
+                let avatarHTML = member.photo 
+                    ? `<div class="avatar" style="margin-bottom: 8px; background-image: url(${member.photo});"></div>`
+                    : `<div class="avatar" style="margin-bottom: 8px;">${member.name.charAt(0).toUpperCase()}</div>`;
+
+                let subtext = member.isSelf ? `<div style="font-size: 10px; color: var(--text-sub); margin-top:2px;">TÚ</div>` : '';
+
+                card.innerHTML = `${avatarHTML}<div style="font-size: 15px; font-weight: bold; text-align: center;">${member.name}</div>${subtext}`;
+                grid.appendChild(card);
+            });
+
+            document.getElementById('member-count').innerText = `${membersMap.size} ${membersMap.size === 1 ? 'miembro' : 'miembros'} • Comparte el código`;
         }
 
         function setupPTT() {
             const pttBtn = document.getElementById('ptt-button');
-            
-            const startTalking = () => {
+
+            const startTalking = (e) => {
+                e.preventDefault();
                 if (localStream) localStream.getAudioTracks()[0].enabled = true;
+                pttBtn.classList.add('active');
             };
 
-            const stopTalking = () => {
+            const stopTalking = (e) => {
+                e.preventDefault();
                 if (localStream) localStream.getAudioTracks()[0].enabled = false;
+                pttBtn.classList.remove('active');
             };
 
-            pttBtn.addEventListener('touchstart', startTalking);
-            pttBtn.addEventListener('touchend', stopTalking);
-            pttBtn.addEventListener('mousedown', startTalking);
-            pttBtn.addEventListener('mouseup', stopTalking);
+            pttBtn.ontouchstart = startTalking;
+            pttBtn.ontouchend = stopTalking;
+            pttBtn.onmousedown = startTalking;
+            pttBtn.onmouseup = stopTalking;
         }
 
         function leaveRoom() {
             if (peer) peer.destroy();
-            location.reload();
+            showScreen('screen-home');
         }
 
         function copyCode() {
@@ -431,5 +480,4 @@
         }
     </script>
 </body>
-  </html>
-      
+</html>
