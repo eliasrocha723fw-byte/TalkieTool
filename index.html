@@ -44,7 +44,6 @@
             display: flex;
         }
 
-        /* Header */
         .header {
             display: flex;
             align-items: center;
@@ -73,7 +72,6 @@
             background-position: center;
         }
 
-        /* Botones */
         .btn-green {
             background-color: var(--accent-green);
             color: #000;
@@ -142,7 +140,6 @@
             text-align: center;
         }
 
-        /* Tarjetas estilo imagen */
         .grid-members {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -164,11 +161,6 @@
             min-height: 120px;
         }
 
-        .member-card.speaking {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 15px rgba(0, 234, 98, 0.3);
-        }
-
         .ptt-container {
             display: flex;
             flex-direction: column;
@@ -188,6 +180,7 @@
             cursor: pointer;
             box-shadow: 0 0 20px rgba(0, 234, 98, 0.2);
             user-select: none;
+            touch-action: manipulation;
         }
 
         .btn-ptt.active {
@@ -204,15 +197,22 @@
         .btn-ptt.active svg {
             fill: #000;
         }
+
+        #status-msg {
+            font-size: 11px;
+            color: var(--accent-green);
+            text-align: center;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- 1. PANTALLA BIENVENIDA / REGISTRO -->
+    <!-- 1. PANTALLA REGISTRO -->
     <div id="screen-welcome" class="screen active">
         <div>
             <h1 style="font-size: 28px; font-weight: 800; margin-top: 20px; color: var(--accent-green);">TalkieTool</h1>
-            <p style="color: var(--text-sub); font-size: 14px; margin-top: 5px;">Configura tu perfil para unirte a las salas.</p>
+            <p style="color: var(--text-sub); font-size: 14px; margin-top: 5px;">Configura tu perfil para empezar.</p>
 
             <div class="card" style="margin-top: 30px;">
                 <label style="font-size: 12px; color: var(--text-sub); font-weight: bold;">TU NOMBRE O APODO</label>
@@ -225,7 +225,7 @@
             </div>
         </div>
 
-        <button class="btn-green" onclick="saveProfile()">CONTINUAR</button>
+        <button class="btn-green" onclick="requestPermissionsAndSave()">CONTINUAR</button>
     </div>
 
     <!-- 2. PANTALLA INICIO -->
@@ -267,6 +267,7 @@
                 <div>
                     <p style="font-size: 10px; color: var(--text-sub); text-align: center;">SALA</p>
                     <div id="display-room-code" class="room-code-display">0000</div>
+                    <div id="status-msg">Listo</div>
                 </div>
                 <button style="background:none; border:none; color:#fff; font-size:20px;">🔊</button>
             </div>
@@ -287,7 +288,8 @@
         </div>
     </div>
 
-    <audio id="remote-audio" autoplay></audio>
+    <!-- Elemento de reproducción de audio -->
+    <audio id="remote-audio" autoplay playsinline></audio>
 
     <script>
         let currentUser = { name: "MønKingg", photo: null };
@@ -301,9 +303,28 @@
             document.getElementById(id).classList.add('active');
         }
 
-        function saveProfile() {
+        // Pide los permisos de Micrófono inmediatamente al darle a Continuar
+        async function requestPermissionsAndSave() {
             const inputName = document.getElementById('user-name-input').value.trim();
             if (inputName) currentUser.name = inputName;
+
+            try {
+                // Solicitar micrófono para activar la ventana emergente de permisos de Android
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                // Mapear canal en silencio hasta presionar PTT
+                localStream.getAudioTracks()[0].enabled = false;
+            } catch (err) {
+                alert("Para usar el Walkie-Talkie necesitas aceptar el permiso de micrófono.");
+            }
+
+            // Habilitar reproducción de audio en segundo plano (MediaSession API)
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'TalkieTool Activo',
+                    artist: 'Canal de voz abierto',
+                    album: 'TalkieTool'
+                });
+            }
 
             const fileInput = document.getElementById('user-photo-input');
             if (fileInput.files && fileInput.files[0]) {
@@ -332,88 +353,70 @@
             }
         }
 
-        async function initAudio() {
-            if (localStream) return true;
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localStream.getAudioTracks()[0].enabled = false;
-                return true;
-            } catch (e) {
-                alert("Para hablar debes conceder permiso de micrófono.");
-                return false;
-            }
-        }
-
-        async function createRoom() {
-            const audioReady = await initAudio();
-            if (!audioReady) return;
-
+        // Click puro e instantáneo para Crear Sala
+        function createRoom() {
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('display-room-code').innerText = currentCode;
-            setupPeer("room-" + currentCode);
+            showScreen('screen-room');
+            startPeerConnection("room-" + currentCode);
         }
 
-        async function joinRoom() {
+        // Click puro e instantáneo para Entrar a la Sala
+        function joinRoom() {
             const input = document.getElementById('room-code-input').value;
             if (input.length !== 4) {
-                alert("Ingresa un código válido de 4 dígitos.");
+                alert("Ingresa un código de 4 dígitos.");
                 return;
             }
 
-            const audioReady = await initAudio();
-            if (!audioReady) return;
-
             currentCode = input;
             document.getElementById('display-room-code').innerText = currentCode;
-            setupPeer("user-" + Math.floor(Math.random() * 10000));
+            showScreen('screen-room');
+            startPeerConnection("user-" + Math.floor(1000 + Math.random() * 9000));
         }
 
-        function setupPeer(peerId) {
-            if (peer) peer.destroy();
+        function startPeerConnection(peerId) {
             membersMap.clear();
+            membersMap.set('self', { name: currentUser.name, photo: currentUser.photo, isSelf: true });
+            renderMembers();
+
+            if (peer) peer.destroy();
 
             peer = new Peer(peerId);
 
             peer.on('open', () => {
-                showScreen('screen-room');
-                // Agregar propio usuario
-                membersMap.set('self', { name: currentUser.name, photo: currentUser.photo, isSelf: true });
-                renderMembers();
+                document.getElementById('status-msg').innerText = "Conectado";
 
                 if (peerId.startsWith("user-")) {
-                    // Unirse a la sala del host
                     let call = peer.call("room-" + currentCode, localStream);
                     let conn = peer.connect("room-" + currentCode);
-                    
-                    conn.on('open', () => {
-                        conn.send({ type: 'profile', user: currentUser });
-                    });
 
-                    conn.on('data', (data) => {
-                        if (data.type === 'profile') {
-                            membersMap.set('host', { name: data.user.name, photo: data.user.photo, isSelf: false });
-                            renderMembers();
-                        }
-                    });
-
-                    handleCall(call);
+                    if (conn) {
+                        conn.on('open', () => {
+                            conn.send({ type: 'profile', user: { name: currentUser.name, photo: currentUser.photo } });
+                        });
+                        conn.on('data', (data) => {
+                            if (data.type === 'profile') {
+                                membersMap.set('host', { name: data.user.name, photo: data.user.photo, isSelf: false });
+                                renderMembers();
+                            }
+                        });
+                    }
+                    if (call) handleCall(call);
                 }
             });
 
-            // Recibir llamada de invitados
             peer.on('call', (call) => {
                 call.answer(localStream);
                 handleCall(call);
             });
 
-            // Recibir datos de perfil de invitados
             peer.on('connection', (conn) => {
                 conn.on('data', (data) => {
                     if (data.type === 'profile') {
                         membersMap.set(conn.peer, { name: data.user.name, photo: data.user.photo, isSelf: false });
                         renderMembers();
-                        // Responder enviando el perfil propio del Host
-                        conn.send({ type: 'profile', user: currentUser });
+                        conn.send({ type: 'profile', user: { name: currentUser.name, photo: currentUser.photo } });
                     }
                 });
             });
@@ -423,7 +426,9 @@
 
         function handleCall(call) {
             call.on('stream', (remoteStream) => {
-                document.getElementById('remote-audio').srcObject = remoteStream;
+                const audio = document.getElementById('remote-audio');
+                audio.srcObject = remoteStream;
+                audio.play();
             });
         }
 
@@ -452,14 +457,18 @@
             const pttBtn = document.getElementById('ptt-button');
 
             const startTalking = (e) => {
-                e.preventDefault();
-                if (localStream) localStream.getAudioTracks()[0].enabled = true;
+                if (e) e.preventDefault();
+                if (localStream && localStream.getAudioTracks()[0]) {
+                    localStream.getAudioTracks()[0].enabled = true;
+                }
                 pttBtn.classList.add('active');
             };
 
             const stopTalking = (e) => {
-                e.preventDefault();
-                if (localStream) localStream.getAudioTracks()[0].enabled = false;
+                if (e) e.preventDefault();
+                if (localStream && localStream.getAudioTracks()[0]) {
+                    localStream.getAudioTracks()[0].enabled = false;
+                }
                 pttBtn.classList.remove('active');
             };
 
