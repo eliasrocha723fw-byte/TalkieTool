@@ -70,6 +70,19 @@
             overflow: hidden;
             background-size: cover;
             background-position: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .avatar-clickable::after {
+            content: '📷';
+            position: absolute;
+            font-size: 12px;
+            bottom: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            padding: 2px;
         }
 
         .btn-green {
@@ -108,9 +121,9 @@
             border: 1px solid #333;
             color: var(--text-main);
             font-size: 16px;
-            padding: 14px;
+            padding: 12px;
             border-radius: 12px;
-            margin-top: 10px;
+            margin-top: 8px;
             outline: none;
         }
 
@@ -162,7 +175,6 @@
             transition: all 0.2s ease;
         }
 
-        /* EFECTO DE LUZ AL HABLAR EN LA TARJETA DEL JUGADOR */
         .member-card.speaking {
             border-color: var(--accent-green) !important;
             box-shadow: 0 0 20px rgba(0, 234, 98, 0.5) !important;
@@ -192,7 +204,6 @@
             transition: all 0.15s ease;
         }
 
-        /* EFECTO DE LUZ EN EL BOTÓN PRINCIPAL DEL MICRÓFONO */
         .btn-ptt.active {
             background-color: var(--accent-green) !important;
             box-shadow: 0 0 35px rgba(0, 234, 98, 0.8) !important;
@@ -220,46 +231,28 @@
 </head>
 <body>
 
-    <!-- 1. PANTALLA REGISTRO -->
-    <div id="screen-welcome" class="screen active">
-        <div>
-            <h1 style="font-size: 28px; font-weight: 800; margin-top: 20px; color: var(--accent-green);">TalkieTool</h1>
-            <p style="color: var(--text-sub); font-size: 14px; margin-top: 5px;">Configura tu perfil para empezar.</p>
-
-            <div class="card" style="margin-top: 30px;">
-                <label style="font-size: 12px; color: var(--text-sub); font-weight: bold;">TU NOMBRE O APODO</label>
-                <input type="text" id="user-name-input" class="text-input" placeholder="Ej: MønKingg" value="MønKingg">
-
-                <div style="margin-top: 20px;">
-                    <label style="font-size: 12px; color: var(--text-sub); font-weight: bold;">FOTO DE PERFIL (OPCIONAL)</label>
-                    <input type="file" id="user-photo-input" accept="image/*" class="text-input" style="padding: 8px;">
-                </div>
-            </div>
-        </div>
-
-        <button class="btn-green" onclick="handleContinue()">CONTINUAR</button>
-    </div>
-
-    <!-- 2. PANTALLA INICIO -->
-    <div id="screen-home" class="screen">
+    <!-- 1. PANTALLA PRINCIPAL -->
+    <div id="screen-home" class="screen active">
         <div>
             <div class="header">
                 <div class="user-profile">
-                    <div id="user-avatar" class="avatar">M</div>
+                    <!-- Avatar con botón de cambiar foto -->
+                    <div id="user-avatar" class="avatar avatar-clickable" onclick="document.getElementById('photo-input').click()">M</div>
+                    <input type="file" id="photo-input" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
+                    
                     <div>
-                        <div style="color: var(--text-sub); font-size: 12px;">HOLA</div>
-                        <div id="user-name-display" style="font-weight: bold;">MønKingg</div>
+                        <div style="color: var(--text-sub); font-size: 10px; font-weight:bold;">CONFIGURACIÓN RÁPIDA</div>
+                        <input type="text" id="user-name-input" class="text-input" value="MønKingg" onchange="updateProfileName(this.value)">
                     </div>
                 </div>
-                <button style="background:none; border:none; color:var(--text-sub); font-size:12px;" onclick="showScreen('screen-welcome')">Editar</button>
             </div>
 
-            <div style="margin-top: 30px;">
+            <div style="margin-top: 15px;">
                 <p style="color: var(--accent-green); font-size: 12px; font-weight: bold; letter-spacing: 1px;">SALA RÁPIDA</p>
-                <h1 style="font-size: 28px; font-weight: 800; margin-top: 5px;">Hablá con tu squad en segundos.</h1>
+                <h1 style="font-size: 24px; font-weight: 800; margin-top: 5px;">Hablá con tu squad en segundos.</h1>
             </div>
 
-            <button class="btn-green" style="margin-top: 25px;" onclick="createRoom()">CREAR SALA<br><span style="font-size: 11px; font-weight: normal;">Generá un código único de 4 dígitos</span></button>
+            <button class="btn-green" style="margin-top: 20px;" onclick="createRoom()">CREAR SALA<br><span style="font-size: 11px; font-weight: normal;">Generá un código único de 4 dígitos</span></button>
 
             <div class="card">
                 <p style="color: var(--text-sub); font-size: 12px; font-weight: bold; text-align: center;">UNIRSE POR CÓDIGO</p>
@@ -271,7 +264,7 @@
         </div>
     </div>
 
-    <!-- 3. PANTALLA SALA -->
+    <!-- 2. PANTALLA SALA -->
     <div id="screen-room" class="screen">
         <div>
             <div class="header">
@@ -279,7 +272,7 @@
                 <div>
                     <p style="font-size: 10px; color: var(--text-sub); text-align: center;">SALA</p>
                     <div id="display-room-code" class="room-code-display">0000</div>
-                    <div id="status-msg">Iniciando...</div>
+                    <div id="status-msg">Listo para conectar</div>
                 </div>
                 <button style="background:none; border:none; color:#fff; font-size:20px;">🔊</button>
             </div>
@@ -314,28 +307,31 @@
             document.getElementById(id).classList.add('active');
         }
 
-        async function handleContinue() {
-            const inputName = document.getElementById('user-name-input').value.trim();
-            if (inputName) currentUser.name = inputName;
+        function updateProfileName(val) {
+            if (val.trim()) {
+                currentUser.name = val.trim();
+                if (!currentUser.photo) {
+                    document.getElementById('user-avatar').innerText = currentUser.name.charAt(0).toUpperCase();
+                }
+            }
+        }
 
-            await requestMic();
-
-            const fileInput = document.getElementById('user-photo-input');
-            if (fileInput.files && fileInput.files[0]) {
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
                 const reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     currentUser.photo = e.target.result;
-                    applyProfileUI();
-                    showScreen('screen-home');
+                    const avatarDiv = document.getElementById('user-avatar');
+                    avatarDiv.style.backgroundImage = `url(${currentUser.photo})`;
+                    avatarDiv.innerText = '';
                 };
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                applyProfileUI();
-                showScreen('screen-home');
+                reader.readAsDataURL(file);
             }
         }
 
         async function requestMic() {
+            if (localStream) return true;
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 if (localStream && localStream.getAudioTracks().length > 0) {
@@ -343,20 +339,8 @@
                 }
                 return true;
             } catch (err) {
-                console.warn("Permiso de micrófono pendiente o denegado.");
+                console.warn("No se pudo obtener acceso al micrófono:", err);
                 return false;
-            }
-        }
-
-        function applyProfileUI() {
-            document.getElementById('user-name-display').innerText = currentUser.name;
-            const avatar = document.getElementById('user-avatar');
-            if (currentUser.photo) {
-                avatar.style.backgroundImage = `url(${currentUser.photo})`;
-                avatar.innerText = "";
-            } else {
-                avatar.style.backgroundImage = "none";
-                avatar.innerText = currentUser.name.charAt(0).toUpperCase();
             }
         }
 
@@ -384,14 +368,6 @@
             membersMap.clear();
             membersMap.set('self', { name: currentUser.name, photo: currentUser.photo, isSelf: true });
             renderMembers();
-
-            if (!localStream) {
-                let gotMic = await requestMic();
-                if (!gotMic) {
-                    document.getElementById('status-msg').innerText = "Permiso de micrófono requerido";
-                    document.getElementById('status-msg').style.color = "var(--accent-red)";
-                }
-            }
 
             if (peer) peer.destroy();
 
@@ -471,16 +447,19 @@
         function setupPTT() {
             const pttBtn = document.getElementById('ptt-button');
 
-            const startTalking = (e) => {
+            const startTalking = async (e) => {
                 if (e) e.preventDefault();
+
+                if (!localStream) {
+                    await requestMic();
+                }
+
                 if (localStream && localStream.getAudioTracks()[0]) {
                     localStream.getAudioTracks()[0].enabled = true;
                 }
                 
-                // 1. Iluminar botón de micrófono abajo
                 pttBtn.classList.add('active');
 
-                // 2. Iluminar cuadro/tarjeta del usuario TÚ con luz verde
                 const selfCard = document.getElementById('card-self');
                 if (selfCard) selfCard.classList.add('speaking');
             };
@@ -491,10 +470,8 @@
                     localStream.getAudioTracks()[0].enabled = false;
                 }
 
-                // 1. Apagar luz del botón
                 pttBtn.classList.remove('active');
 
-                // 2. Apagar luz del cuadro/tarjeta
                 const selfCard = document.getElementById('card-self');
                 if (selfCard) selfCard.classList.remove('speaking');
             };
